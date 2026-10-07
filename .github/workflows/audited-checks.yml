@@ -1,0 +1,45 @@
+name: Audited checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Full tollkeeper suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run green test files as scripts
+        working-directory: tollkeeper
+        run: |
+          set -e
+          for t in test_billing.py test_envelope.py test_identity_reputation.py test_server.py test_stripe_config.py test_stripe_metering.py test_stripe_webhook.py test_grants.py test_oracle.py; do
+            echo "=== $t ==="
+            python3 "$t"
+          done
+          echo "full suite green"
+
+  secrets-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for committed secrets
+        # NOTE: sk_(live|test)_ requires 20+ trailing chars so the dummy
+        # "sk_test_x" test fixtures in tollkeeper/test_stripe_metering.py
+        # are not flagged; real Stripe keys are far longer.
+        run: |
+          set -e
+          echo "Scanning for common secret patterns..."
+          ! grep -rnE "AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY|sk_(live|test)_[A-Za-z0-9]{20,}|xox[bap]-[A-Za-z0-9-]+|-----BEGIN" \
+            --include="*.py" --include="*.html" --include="*.txt" --include="*.md" --include="*.yml" --exclude="audited-checks.yml" .
+          echo "No secrets found."
