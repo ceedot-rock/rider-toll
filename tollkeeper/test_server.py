@@ -47,6 +47,20 @@ def test_health():
     assert doc["service"] == "tollkeeper", doc
 
 
+def test_root_service_about_endpoints():
+    code, doc = _req("GET", "/")
+    assert code == 200, (code, doc)
+    assert doc["service"] == "tollkeeper", doc
+    assert doc["version"] == srv.VERSION, doc
+    assert isinstance(doc["about"], str) and doc["about"], doc
+    assert isinstance(doc["endpoints"], list) and doc["endpoints"], doc
+    paths = {(e["method"], e["path"]) for e in doc["endpoints"]}
+    for method, path in (("GET", "/"), ("GET", "/health"),
+                         ("GET", "/v1/tolls/status"),
+                         ("POST", "/webhooks/stripe")):
+        assert (method, path) in paths, (method, path, doc)
+
+
 def test_status_readonly_all_dark():
     code, doc = _req("GET", "/v1/tolls/status")
     assert code == 200, (code, doc)

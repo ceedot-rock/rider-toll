@@ -2,6 +2,7 @@
 """tollkeeper.server — deployable HTTP surface for the tollkeeper.
 
 Routes:
+  GET  /                  service name, about, and endpoint list (JSON)
   GET  /health            liveness probe
   GET  /v1/tolls/status   gate flags, pricing status, Stripe mode (read-only)
   POST /webhooks/stripe   Stripe webhook deliveries (raw body preserved)
@@ -50,6 +51,29 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
+        if p == "/":
+            return self._send(200, {
+                "service": "tollkeeper",
+                "about": ("Agent Rider toll-keeper platform: signed envelope "
+                          "core plus toll gates 1, 2, 4, 5, 7 (identity, "
+                          "billing, grants, oracle, bonds, memory). "
+                          "Stdlib-only; nothing here flips a gate or "
+                          "charges anything."),
+                "version": VERSION,
+                "endpoints": [
+                    {"method": "GET", "path": "/",
+                     "description": "this document: service, about, endpoints"},
+                    {"method": "GET", "path": "/health",
+                     "description": "liveness probe"},
+                    {"method": "GET", "path": "/v1/tolls/status",
+                     "description": ("gate flags, pricing status, "
+                                     "Stripe mode (read-only)")},
+                    {"method": "POST", "path": "/webhooks/stripe",
+                     "description": ("Stripe webhook deliveries "
+                                     "(raw body preserved, signature "
+                                     "verified)")},
+                ],
+            })
         if p == "/health":
             return self._send(200, {"ok": True, "service": "tollkeeper",
                                     "version": VERSION})
